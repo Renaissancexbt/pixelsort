@@ -1,0 +1,64 @@
+"""Command line interface.
+
+    pixelsort photo.jpg                          default melt, writes photo.sorted.png
+    pixelsort photo.jpg -o out.png --angle 90    vertical streaks
+    pixelsort photo.jpg --key hue --interval random --length 120
+    pixelsort photo.jpg --lower 0.1 --upper 0.6 --reverse
+    pixelsort photo.jpg --mask sky.png           sort only where the mask is white
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from pathlib import Path
+
+from .core import Options, sort_file
+from .intervals import INTERVALS
+from .keys import KEYS
+
+
+def build_parser() -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(prog="pixelsort", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("input", type=Path)
+    ap.add_argument("-o", "--output", type=Path, help="default: <input>.sorted.png")
+    ap.add_argument("-k", "--key", default="lightness", choices=sorted(KEYS),
+                    help="what to sort by (default: lightness)")
+    ap.add_argument("-i", "--interval", default="threshold", choices=sorted(INTERVALS),
+                    help="how rows are cut into runs (default: threshold)")
+    ap.add_argument("-l", "--lower", type=float, default=0.25,
+                    help="threshold: lower bound 0..1; edges: jump size (default 0.25)")
+    ap.add_argument("-u", "--upper", type=float, default=0.8, help="threshold: upper bound 0..1")
+    ap.add_argument("-n", "--length", type=int, default=60, help="random: average run length in px")
+    ap.add_argument("-a", "--angle", type=float, default=0.0, help="sorting direction in degrees")
+    ap.add_argument("-r", "--reverse", action="store_true", help="sort bright to dark")
+    ap.add_argument("-m", "--mask", type=Path, help="black/white image; only white areas are sorted")
+    ap.add_argument("-s", "--seed", type=int, help="seed for the random interval")
+    return ap
+
+
+def main(argv: list[str] | None = None) -> int:
+    a = build_parser().parse_args(argv)
+    if not a.input.exists():
+        print(f"pixelsort: {a.input}: no such file", file=sys.stderr)
+        return 2
+    if not 0 <= a.lower <= 1 or not 0 <= a.upper <= 1:
+        print("pixelsort: --lower and --upper must be between 0 and 1", file=sys.stderr)
+        return 2
+    out = a.output or a.input.with_name(a.input.stem + ".sorted.png")
+    opts = Options(key=a.key, interval=a.interval, lower=a.lower, upper=a.upper,
+                   length=a.length, angle=a.angle, reverse=a.reverse, seed=a.seed)
+    t = time.perf_counter()
+    try:
+        sort_file(str(a.input), str(out), opts, str(a.mask) if a.mask else None)
+    except ValueError as e:
+        print(f"pixelsort: {e}", file=sys.stderr)
+        return 2
+    print(f"{out}  ({time.perf_counter() - t:.1f}s)")
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
