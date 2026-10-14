@@ -1,0 +1,7 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+*.sorted.png
+examples/sunset-*.png
