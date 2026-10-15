@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pixelsort · playground</title>
+<meta name="description" content="Drop a photo, drag a slider, watch it melt. Pixel sorting in your browser: live, animated, or on your webcam. Nothing is uploaded.">
+<meta property="og:title" content="pixelsort · glitch art by sorting pixels">
+<meta property="og:description" content="Drop a photo, watch it melt. Runs entirely in your browser.">
+<meta property="og:image" content="https://renaissancexbt.github.io/pixelsort/img/hero.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0910; --panel: #13111d; --panel2: #1a1727; --line: #2a2540;
+  --ink: #f6f0e8; --dim: #978fab; --acc: #ffd68c; --pink: #ff7896; --ok: #7bed9f;
+  --r: 14px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; }
+body { min-height: 100vh; }
+a { color: var(--acc); text-decoration: none; }
+a:hover { text-decoration: underline; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.brand h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+.brand h1 span { background: linear-gradient(90deg, var(--pink), var(--acc)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand p { margin: 0; color: var(--dim); font-size: 14px; }
+.gh { font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); white-space: nowrap; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; padding: 20px 24px 28px; max-width: 1500px; margin: 0 auto; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 14px 16px 24px; } header { padding: 14px 16px; } .stage { min-height: 0; } }
+
+.stage { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); min-height: 360px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.stage canvas { max-width: 100%; max-height: calc(100vh - 210px); display: block; image-rendering: auto; }
+.stage.drag { outline: 2px dashed var(--acc); outline-offset: -10px; }
+.hud { position: absolute; top: 12px; right: 12px; font: 12px 'JetBrains Mono', ui-monospace, monospace; background: rgba(10,9,16,.8); color: var(--acc); padding: 6px 10px; border-radius: 8px; pointer-events: none; }
+.hud:empty { display: none; }
+.hint { position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: var(--dim); background: rgba(10,9,16,.7); padding: 5px 9px; border-radius: 8px; pointer-events: none; }
+.rec { position: absolute; top: 12px; left: 12px; display: none; align-items: center; gap: 8px; font: 600 12px Inter, system-ui, sans-serif; background: rgba(10,9,16,.85); padding: 6px 10px; border-radius: 8px; }
+.rec.on { display: flex; }
+.rec i { width: 9px; height: 9px; border-radius: 50%; background: #ff4d6d; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+
+.below { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.cmd { flex: 1 1 360px; min-width: 0; display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font: 13px 'JetBrains Mono', ui-monospace, monospace; }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; color: var(--ink); }
+.cmd code b { color: var(--pink); font-weight: 400; }
+
+aside { display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
+.card h2 { margin: 0 0 12px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { appearance: none; border: 1px solid var(--line); background: var(--panel2); color: var(--ink); font: 600 14px Inter, system-ui, sans-serif; padding: 10px 14px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.btn:hover { border-color: #4a4070; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: linear-gradient(90deg, var(--pink), var(--acc)); color: #1a0f1f; border: 0; }
+.btn.live { border-color: var(--ok); color: var(--ok); }
+.btn.small { padding: 7px 10px; font-size: 13px; }
+.grow { flex: 1; justify-content: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: transparent; color: var(--dim); font: 13px Inter, system-ui, sans-serif; padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+label.field { display: block; margin-top: 14px; }
+label.field > span { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); margin-bottom: 6px; }
+label.field > span output { font-family: 'JetBrains Mono', monospace; color: var(--ink); }
+input[type=range] { width: 100%; accent-color: var(--acc); }
+.toggle { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; cursor: pointer; }
+.toggle input { accent-color: var(--pink); width: 18px; height: 18px; }
+.presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.presets .chip { text-align: center; }
+footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px 28px; }
+.hidden { display: none !important; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font: 600 14px Inter, system-ui, sans-serif; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>pixel<span>sort</span></h1>
+    <p>drop a photo, drag a slider, watch it melt</p>
+  </div>
+  <a class="gh" href="https://github.com/Renaissancexbt/pixelsort" target="_blank" rel="noopener">★ github</a>
+</header>
+
+<main>
+  <section>
+    <div class="stage" id="stage">
+      <canvas id="view" width="960" height="600" aria-label="pixel sorted image"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="rec" id="rec"><i></i>REC</div>
+      <div class="hint" id="hint">drop an image anywhere · hold <b>space</b> to see the original</div>
+    </div>
+    <div class="below">
+      <div class="cmd"><code id="cmd"></code><button class="btn small" id="copy">copy</button></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>Source</h2>
+      <div class="row">
+        <button class="btn grow" id="pick">📁 Photo</button>
+        <button class="btn grow" id="sample">🌅 Sample</button>
+        <button class="btn grow" id="cam">📷 Camera</button>
+      </div>
+      <input type="file" id="file" accept="image/*" class="hidden">
+    </div>
+
+    <div class="card">
+      <h2>Presets</h2>
+      <div class="presets" id="presets"></div>
+    </div>
+
+    <div class="card">
+      <h2>Sort by</h2>
+      <div class="chips" id="keys"></div>
+      <h2 style="margin-top:16px">Cut rows by</h2>
+      <div class="chips" id="intervals"></div>
+
+      <label class="field" id="f-lower"><span><span id="lowerLabel">lower</span><output id="o-lower"></output></span>
+        <input type="range" id="lower" min="0" max="1" step="0.01"></label>
+      <label class="field" id="f-upper"><span>upper<output id="o-upper"></output></span>
+        <input type="range" id="upper" min="0" max="1" step="0.01"></label>
+      <label class="field hidden" id="f-length"><span>run length<output id="o-length"></output></span>
+        <input type="range" id="length" min="4" max="400" step="1"></label>
+      <label class="field"><span>angle<output id="o-angle"></output></span>
+        <input type="range" id="angle" min="0" max="359" step="1"></label>
+      <label class="toggle"><input type="checkbox" id="reverse"> reverse (bright first)</label>
+      <div class="row" style="margin-top:12px">
+        <button class="btn small hidden" id="reroll">🎲 new random runs</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Make something</h2>
+      <div class="row">
+        <button class="btn primary grow" id="animate">▶ Watch it sort</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn grow" id="record">🎬 Record video</button>
+        <button class="btn grow" id="download">⬇ PNG</button>
+      </div>
+    </div>
+  </aside>
+</main>
+<footer>runs 100% in your browser · your photos and camera never leave this page · MIT ·
+  <a href="https://github.com/Renaissancexbt/pixelsort" target="_blank" rel="noopener">source</a></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ---------- keys: pixel -> 0..1, same as pixelsort/keys.py ----------
+const KEYS = {
+  lightness: (r, g, b) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255,
+  intensity: (r, g, b) => (r + g + b) / 765,
+  hue: (r, g, b) => {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (d === 0) return 0;
+    let h;
+    if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4;
+    h /= 6; return h < 0 ? h + 1 : h;
+  },
+  saturation: (r, g, b) => { const mx = Math.max(r, g, b); return mx === 0 ? 0 : (mx - Math.min(r, g, b)) / mx; },
+  red: (r) => r / 255, green: (r, g) => g / 255, blue: (r, g, b) => b / 255,
+};
+
+// ---------- seeded rng (for random runs) ----------
+function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ---------- interval functions: same rules as pixelsort/intervals.py ----------
+// k: Float32Array of keys, [s, e): segment of valid pixels; push(start, end) for each run
+const INTERVALS = {
+  threshold(k, s, e, o, push) {
+    let st = -1;
+    for (let i = s; i < e; i++) {
+      const inside = k[i] >= o.lower && k[i] <= o.upper;
+      if (inside && st < 0) st = i;
+      else if (!inside && st >= 0) { if (i - st > 1) push(st, i); st = -1; }
+    }
+    if (st >= 0 && e - st > 1) push(st, e);
+  },
+  edges(k, s, e, o, push) {
+    let st = s;
+    for (let i = s + 1; i < e; i++) {
+      if (Math.abs(k[i] - k[i - 1]) > o.lower) { if (i - st > 1) push(st, i); st = i; }
+    }
+    if (e - st > 1) push(st, e);
+  },
+  random(k, s, e, o, push, rand) {
+    let i = s;
+    while (i < e) { const step = Math.max(2, Math.floor((0.2 + 1.6 * rand()) * o.length)); push(i, Math.min(e, i + step)); i += step; }
+  },
+  none(k, s, e, o, push) { if (e - s > 1) push(s, e); },
+};
+
+// ---------- state ----------
+const $ = (id) => document.getElementById(id);
+const view = $("view"), vctx = view.getContext("2d");
+const src = document.createElement("canvas"), sctx = src.getContext("2d", { willReadFrequently: true });
+const rot = document.createElement("canvas"), rctx = rot.getContext("2d", { willReadFrequently: true });
+const o = { key: "lightness", interval: "threshold", lower: 0.25, upper: 0.8, length: 60, angle: 0, reverse: false, seed: 7 };
+const MAX_SIDE = 1100;
+let camStream = null, video = null, animating = false, showOriginal = false, recorder = null, srcName = "photo.jpg";
+
+const PRESETS = [
+  ["melt", {}], ["drip", { angle: 90, lower: 0.2, upper: 0.9 }], ["rain", { angle: 270, reverse: true, lower: 0.1, upper: 0.7 }],
+  ["diagonal", { angle: 30, lower: 0.15, upper: 0.95 }], ["rainbow", { key: "hue", interval: "random", length: 140 }],
+  ["outline", { interval: "edges", lower: 0.1 }],
+];
+const BASE = { key: "lightness", interval: "threshold", lower: 0.25, upper: 0.8, length: 60, angle: 0, reverse: false };
+
+// ---------- the sorter ----------
+// Rotate the source into `rot` (expanded), sort valid rows in place, return the buffers.
+function prepare() {
+  const w = src.width, h = src.height, a = o.angle * Math.PI / 180;
+  const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+  const W = o.angle % 360 === 0 ? w : Math.ceil(w * c + h * s);
+  const H = o.angle % 360 === 0 ? h : Math.ceil(w * s + h * c);
+  rot.width = W; rot.height = H;
+  rctx.imageSmoothingEnabled = false;
+  rctx.clearRect(0, 0, W, H);
+  rctx.save(); rctx.translate(W / 2, H / 2); rctx.rotate(-a); rctx.drawImage(src, -w / 2, -h / 2); rctx.restore();
+  const img = rctx.getImageData(0, 0, W, H);
+  const px = new Uint32Array(img.data.buffer), d = img.data, n = W * H;
+  const key = new Float32Array(n), valid = new Uint8Array(n), fn = KEYS[o.key];
+  for (let i = 0, j = 0; i < n; i++, j += 4) { valid[i] = d[j + 3] === 255 ? 1 : 0; key[i] = fn(d[j], d[j + 1], d[j + 2]); }
+  // runs
+  const runs = []; const rand = rng(o.seed); const ifn = INTERVALS[o.interval];
+  for (let y = 0; y < H; y++) {
+    const base = y * W; let x = 0;
+    while (x < W) {
+      while (x < W && !valid[base + x]) x++;
+      const s0 = x;
+      while (x < W && valid[base + x]) x++;
+      if (x - s0 > 1) ifn(key, base + s0, base + x, o, (a, b) => runs.push(a, b), rand);
+    }
+  }
+  return { img, px, key, runs, W, H };
+}
+
+const scratch = { idx: new Uint32Array(4096), tmp: new Uint32Array(4096) };
+function sortAll(st) {
+  const { px, key, runs } = st;
+  for (let r = 0; r < runs.length; r += 2) {
+    const a = runs[r], b = runs[r + 1], n = b - a;
+    if (scratch.idx.length < n) { scratch.idx = new Uint32Array(n * 2); scratch.tmp = new Uint32Array(n * 2); }
+    const idx = scratch.idx.subarray(0, n), tmp = scratch.tmp;
+    for (let i = 0; i < n; i++) {
+      let q = Math.round(key[a + i] * 4095); if (o.reverse) q = 4095 - q;
+      idx[i] = (q << 20 | i) >>> 0;
+    }
+    idx.sort();
+    for (let i = 0; i < n; i++) tmp[i] = px[a + i];
+    for (let i = 0; i < n; i++) px[a + i] = tmp[idx[i] & 0xFFFFF];
+  }
+}
+
+// Draw the (partially) sorted rotated buffer back onto the view, over the original.
+function present(st) {
+  rctx.putImageData(st.img, 0, 0);
+  const w = src.width, h = src.height;
+  if (view.width !== w || view.height !== h) { view.width = w; view.height = h; }
+  vctx.imageSmoothingEnabled = false;
+  vctx.drawImage(src, 0, 0);
+  if (showOriginal) return;
+  if (o.angle % 360 === 0) { vctx.drawImage(rot, 0, 0); return; }
+  vctx.save(); vctx.translate(w / 2, h / 2); vctx.rotate(o.angle * Math.PI / 180); vctx.drawImage(rot, -st.W / 2, -st.H / 2); vctx.restore();
+}
+
+let pending = false;
+function render() {
+  if (animating || !src.width) return;
+  if (pending) return; pending = true;
+  requestAnimationFrame(() => {
+    pending = false;
+    const t0 = performance.now();
+    const st = prepare(); sortAll(st); present(st);
+    if (!camStream) $("hud").textContent = `${(src.width * src.height / 1000).toFixed(0)}k px · ${Math.round(performance.now() - t0)} ms`;
+  });
+}
+
+// ---------- animation: odd-even transposition sort inside the same runs ----------
+async function watch(seconds = 5) {
+  if (animating || !src.width) return;
+  stopCam();
+  animating = true; setBusy(true);
+  const st = prepare(); const { px, key, W, H, runs } = st, n = W * H;
+  const id = new Int32Array(n).fill(-1);
+  let maxRun = 0;
+  for (let r = 0; r < runs.length; r += 2) { const a = runs[r], b = runs[r + 1]; for (let i = a; i < b; i++) id[i] = r; maxRun = Math.max(maxRun, b - a); }
+  const k = new Float32Array(n);
+  for (let i = 0; i < n; i++) k[i] = o.reverse ? -key[i] : key[i];
+  // pairs only within the same run and the same row
+  const pass = (p) => {
+    let swaps = 0;
+    for (let y = 0; y < H; y++) {
+      const base = y * W;
+      for (let i = base + p; i + 1 < base + W; i += 2) {
+        const ri = id[i];
+        if (ri >= 0 && ri === id[i + 1] && k[i] > k[i + 1]) {
+          const t = px[i]; px[i] = px[i + 1]; px[i + 1] = t;
+          const u = k[i]; k[i] = k[i + 1]; k[i + 1] = u; swaps++;
+        }
+      }
+    }
+    return swaps;
+  };
+  const frames = Math.round(seconds * 60), total = maxRun + 2;
+  let done = 0, parity = 0, quiet = 0, swapsTotal = 0;
+  present(st); await sleep(500);
+  for (let f = 0; f < frames && quiet < 2; f++) {
+    const target = Math.round(total * Math.pow((f + 1) / frames, 2));
+    while (done < target && quiet < 2) { const s = pass(parity); swapsTotal += s; quiet = s ? 0 : quiet + 1; parity ^= 1; done++; }
+    present(st);
+    $("hud").textContent = `pass ${done} · swaps ${(swapsTotal / 1e6).toFixed(2)}M`;
+    await frame();
+  }
+  while (quiet < 2) { const s = pass(parity); quiet = s ? 0 : quiet + 1; parity ^= 1; done++; }
+  present(st);
+  $("hud").textContent = `sorted · ${done} passes · ${(swapsTotal / 1e6).toFixed(2)}M swaps`;
+  animating = false; setBusy(false);
+}
+const frame = () => new Promise((r) => requestAnimationFrame(r));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function setBusy(b) { ["animate", "record", "download", "cam", "pick", "sample"].forEach((x) => { $(x).disabled = b; }); }
+
+// ---------- recording ----------
+function pickMime() {
+  const c = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
+  return c.find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+}
+async function record() {
+  if (!window.MediaRecorder) return toast("recording isn't supported in this browser");
+  const mime = pickMime();
+  const stream = view.captureStream(60);
+  const chunks = [];
+  recorder = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: 12_000_000 });
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  const stopped = new Promise((r) => (recorder.onstop = r));
+  recorder.start(); $("rec").classList.add("on");
+  if (camStream) {
+    toast("recording 6 seconds of camera");
+    await sleep(6000);
+  } else {
+    await watch(5); await sleep(1200);
+  }
+  recorder.stop(); await stopped; $("rec").classList.remove("on");
+  const ext = (mime || "video/webm").includes("mp4") ? "mp4" : "webm";
+  save(new Blob(chunks, { type: mime || "video/webm" }), `pixelsort.${ext}`);
+}
+
+// ---------- sources ----------
+function loadImage(url, name) {
+  const im = new Image(); im.crossOrigin = "anonymous";
+  im.onload = () => { stopCam(); setSource(im, im.naturalWidth, im.naturalHeight); srcName = name || "photo.jpg"; updateCmd(); };
+  im.onerror = () => toast("couldn't read that image");
+  im.src = url;
+}
+function setSource(el, w, h, mirror = false) {
+  const s = Math.min(1, MAX_SIDE / Math.max(w, h));
+  const W = Math.round(w * s), H = Math.round(h * s);
+  if (src.width !== W || src.height !== H) { src.width = W; src.height = H; }
+  sctx.save();
+  if (mirror) { sctx.translate(W, 0); sctx.scale(-1, 1); }
+  sctx.drawImage(el, 0, 0, W, H); sctx.restore();
+  render();
+}
+async function startCam() {
+  if (camStream) return stopCam();
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+  } catch (e) { camStream = null; return toast("camera permission denied or no camera"); }
+  video = document.createElement("video"); video.srcObject = camStream; video.muted = true; video.playsInline = true; await video.play();
+  $("cam").classList.add("live"); $("cam").textContent = "■ Stop camera"; $("animate").disabled = true;
+  srcName = "webcam";
+  let last = performance.now(), fps = 0;
+  const loop = () => {
+    if (!camStream) return;
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (vw) {
+      const s = Math.min(1, 640 / Math.max(vw, vh));
+      const W = Math.round(vw * s), H = Math.round(vh * s);
+      if (src.width !== W || src.height !== H) { src.width = W; src.height = H; }
+      sctx.save(); sctx.translate(W, 0); sctx.scale(-1, 1); sctx.drawImage(video, 0, 0, W, H); sctx.restore();
+      const st = prepare(); sortAll(st); present(st);
+      const now = performance.now(); fps = fps * 0.9 + 0.1 * (1000 / (now - last)); last = now;
+      $("hud").textContent = `live · ${fps.toFixed(0)} fps`;
+    }
+    requestAnimationFrame(loop);
+  };
+  updateCmd(); loop();
+}
+function stopCam() {
+  if (!camStream) return;
+  camStream.getTracks().forEach((t) => t.stop()); camStream = null;
+  $("cam").classList.remove("live"); $("cam").textContent = "📷 Camera"; $("animate").disabled = false;
+  $("hud").textContent = "";
+}
+
+// ---------- ui ----------
+function chips(el, list, field) {
+  el.innerHTML = "";
+  list.forEach((name) => {
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = name; b.dataset.v = name;
+    b.onclick = () => { o[field] = name; sync(); render(); };
+    el.appendChild(b);
+  });
+}
+function sync() {
+  document.querySelectorAll("#keys .chip").forEach((b) => b.classList.toggle("on", b.dataset.v === o.key));
+  document.querySelectorAll("#intervals .chip").forEach((b) => b.classList.toggle("on", b.dataset.v === o.interval));
+  for (const f of ["lower", "upper", "length", "angle"]) { $(f).value = o[f]; }
+  $("o-lower").textContent = (+o.lower).toFixed(2); $("o-upper").textContent = (+o.upper).toFixed(2);
+  $("o-length").textContent = o.length + " px"; $("o-angle").textContent = o.angle + "°";
+  $("reverse").checked = o.reverse;
+  const thr = o.interval === "threshold", edg = o.interval === "edges", rnd = o.interval === "random";
+  $("f-lower").classList.toggle("hidden", !(thr || edg));
+  $("f-upper").classList.toggle("hidden", !thr);
+  $("f-length").classList.toggle("hidden", !rnd);
+  $("reroll").classList.toggle("hidden", !rnd);
+  $("lowerLabel").textContent = edg ? "edge strength" : "lower";
+  updateCmd();
+}
+function updateCmd() {
+  const parts = [`<b>pixelsort</b> ${srcName.replace(/[<>&]/g, "")}`];
+  if (o.key !== "lightness") parts.push(`--key ${o.key}`);
+  if (o.interval !== "threshold") parts.push(`--interval ${o.interval}`);
+  if (o.interval === "threshold" && +o.lower !== 0.25) parts.push(`--lower ${(+o.lower).toFixed(2)}`);
+  if (o.interval === "edges") parts.push(`--lower ${(+o.lower).toFixed(2)}`);
+  if (o.interval === "threshold" && +o.upper !== 0.8) parts.push(`--upper ${(+o.upper).toFixed(2)}`);
+  if (o.interval === "random") parts.push(`--length ${o.length}`, `--seed ${o.seed}`);
+  if (+o.angle) parts.push(`--angle ${o.angle}`);
+  if (o.reverse) parts.push("--reverse");
+  $("cmd").innerHTML = parts.join(" ");
+}
+function save(blob, name) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+let toastT; function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2200); }
+
+chips($("keys"), Object.keys(KEYS), "key");
+chips($("intervals"), Object.keys(INTERVALS), "interval");
+PRESETS.forEach(([name, p]) => {
+  const b = document.createElement("button"); b.className = "chip"; b.textContent = name;
+  b.onclick = () => { Object.assign(o, BASE, p); sync(); render(); };
+  $("presets").appendChild(b);
+});
+for (const f of ["lower", "upper", "length", "angle"]) {
+  $(f).addEventListener("input", (e) => {
+    o[f] = f === "length" || f === "angle" ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
+    if (f === "lower" && o.interval === "threshold" && o.lower > o.upper) o.upper = o.lower;
+    if (f === "upper" && o.lower > o.upper) o.lower = o.upper;
+    sync(); render();
+  });
+}
+$("reverse").onchange = (e) => { o.reverse = e.target.checked; sync(); render(); };
+$("reroll").onclick = () => { o.seed = Math.floor(Math.random() * 1e6); sync(); render(); };
+$("pick").onclick = () => $("file").click();
+$("file").onchange = (e) => { const f = e.target.files[0]; if (f) loadImage(URL.createObjectURL(f), f.name); };
+$("sample").onclick = () => loadImage("img/original.jpg", "sunset.png");
+$("cam").onclick = startCam;
+$("animate").onclick = () => watch(5);
+$("record").onclick = record;
+$("download").onclick = () => view.toBlob((b) => save(b, "pixelsort.png"), "image/png");
+$("copy").onclick = async () => {
+  const text = $("cmd").textContent;
+  try { await navigator.clipboard.writeText(text); toast("command copied"); } catch { toast(text); }
+};
+const stage = $("stage");
+["dragenter", "dragover"].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); stage.classList.add("drag"); }));
+["dragleave", "drop"].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) stage.classList.remove("drag"); }));
+document.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("image/")) loadImage(URL.createObjectURL(f), f.name); });
+document.addEventListener("paste", (e) => { const it = [...e.clipboardData.items].find((i) => i.type.startsWith("image/")); if (it) loadImage(URL.createObjectURL(it.getAsFile()), "pasted.png"); });
+document.addEventListener("keydown", (e) => { if (e.code === "Space" && e.target === document.body && !showOriginal) { e.preventDefault(); showOriginal = true; render(); } });
+document.addEventListener("keyup", (e) => { if (e.code === "Space" && showOriginal) { showOriginal = false; render(); } });
+stage.addEventListener("pointerdown", () => { if (!animating) { showOriginal = true; render(); } });
+["pointerup", "pointerleave"].forEach((ev) => stage.addEventListener(ev, () => { if (showOriginal) { showOriginal = false; render(); } }));
+
+sync();
+loadImage("img/original.jpg", "sunset.png");
+</script>
+</body>
+</html>
