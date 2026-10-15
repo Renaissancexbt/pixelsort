@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pixelsort-glitch"
-version = "0.1.0"
+version = "0.2.0"
 description = "Glitch art by sorting pixels"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,8 @@ dependencies = ["Pillow>=9.1"]
 keywords = ["glitch", "pixel sort", "generative art", "image", "pillow"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+animate = ["numpy>=1.22"]
+dev = ["pytest>=7", "numpy>=1.22"]
 
 [project.scripts]
 pixelsort = "pixelsort.cli:main"

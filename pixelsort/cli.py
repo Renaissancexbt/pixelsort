@@ -5,6 +5,7 @@
     pixelsort photo.jpg --key hue --interval random --length 120
     pixelsort photo.jpg --lower 0.1 --upper 0.6 --reverse
     pixelsort photo.jpg --mask sky.png           sort only where the mask is white
+    pixelsort photo.jpg --angle 90 --animate drip.mp4   watch it sort (needs numpy)
 """
 
 from __future__ import annotations
@@ -36,6 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("-r", "--reverse", action="store_true", help="sort bright to dark")
     ap.add_argument("-m", "--mask", type=Path, help="black/white image; only white areas are sorted")
     ap.add_argument("-s", "--seed", type=int, help="seed for the random interval")
+    ap.add_argument("--animate", type=Path, metavar="OUT",
+                    help="also render the sort as a video: OUT.mp4 (needs ffmpeg) or OUT.gif")
+    ap.add_argument("--seconds", type=float, default=5.0, help="animation length (default 5)")
+    ap.add_argument("--fps", type=int, default=30, help="animation frame rate (default 30)")
     return ap
 
 
@@ -52,8 +57,26 @@ def main(argv: list[str] | None = None) -> int:
                    length=a.length, angle=a.angle, reverse=a.reverse, seed=a.seed)
     t = time.perf_counter()
     try:
-        sort_file(str(a.input), str(out), opts, str(a.mask) if a.mask else None)
-    except ValueError as e:
+        if a.animate:
+            if a.mask:
+                raise ValueError("--animate does not support --mask yet")
+            from PIL import Image
+
+            from .animate import animate
+
+            def bar(i: int, n: int) -> None:
+                fill = int(30 * i / n)
+                print(f"\r  sorting [{'#' * fill}{'.' * (30 - fill)}] {i}/{n}", end="",
+                      file=sys.stderr, flush=True)
+
+            img = Image.open(a.input)
+            final = animate(img, opts, str(a.animate), seconds=a.seconds, fps=a.fps, on_progress=bar)
+            print(file=sys.stderr)
+            final.save(out)
+            print(f"{a.animate}")
+        else:
+            sort_file(str(a.input), str(out), opts, str(a.mask) if a.mask else None)
+    except (ValueError, RuntimeError) as e:
         print(f"pixelsort: {e}", file=sys.stderr)
         return 2
     print(f"{out}  ({time.perf_counter() - t:.1f}s)")

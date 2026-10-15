@@ -18,3 +18,4 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
       - run: pixelsort examples/sunset.png -o /tmp/out.png --angle 45
+      - run: pixelsort examples/sunset.png -o /tmp/out2.png --angle 90 --animate /tmp/drip.mp4 --seconds 2
