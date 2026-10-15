@@ -11,6 +11,8 @@
 ![pillow](https://img.shields.io/badge/deps-Pillow-8a63d2?style=flat-square)
 ![license](https://img.shields.io/badge/license-MIT-f4c430?style=flat-square)
 
+### [▶ Try it in your browser](https://renaissancexbt.github.io/pixelsort/) · no install, works with your webcam
+
 </div>
 
 ---
@@ -23,6 +25,14 @@ the picture starts to drip. That second trick is the whole art form.
 This is a small, readable implementation: about 300 lines of Python, one
 dependency (Pillow), and every option explained below with a picture.
 
+## Three ways to play
+
+| | |
+|---|---|
+| **🌐 [Playground](https://renaissancexbt.github.io/pixelsort/)** | Drop a photo, drag sliders and watch it change live. Hit **Watch it sort** to see every pixel travel to its place, **Record video** to save that as an MP4, or turn on your **camera** and melt yourself in real time. Everything runs in the page; nothing is uploaded. |
+| **⌨️ Command line** | `pixelsort photo.jpg --angle 90` for a still, add `--animate drip.mp4` for the video of the sort. |
+| **🐍 Python** | `from pixelsort import pixelsort` and use it inside your own code. |
+
 ## Quick start
 
 ```bash
@@ -30,6 +40,15 @@ pip install git+https://github.com/Renaissancexbt/pixelsort
 pixelsort photo.jpg                       # writes photo.sorted.png
 pixelsort photo.jpg --angle 90            # vertical streaks
 pixelsort photo.jpg --key hue --interval random --length 120
+```
+
+Watch it happen. `--animate` renders the sort itself, pass by pass, as an MP4
+(needs ffmpeg) or a GIF:
+
+```bash
+pip install "pixelsort-glitch[animate] @ git+https://github.com/Renaissancexbt/pixelsort"
+pixelsort photo.jpg --angle 90 --animate drip.mp4            # 5 s at 30 fps
+pixelsort photo.jpg --angle 270 --reverse --animate rain.gif --seconds 3
 ```
 
 Or from Python:
@@ -89,6 +108,11 @@ bottom, `270` bottom to top, anything else diagonally. The picture is rotated,
 sorted row by row, rotated back and cropped, and the empty corners created by
 the rotation are never sorted into the image.
 
+**Animation** uses an odd-even transposition sort inside exactly the same runs:
+neighbouring pixels swap one step at a time, so bright pixels visibly drift
+through dark ones. Equal keys never swap, which makes the last frame identical
+to the still image (the tests check this for every mode).
+
 **Mask** limits sorting to part of the picture. Pass a black and white image
 of any size; it is scaled to fit, and only the white areas are sorted.
 
@@ -114,11 +138,14 @@ pixelsort/
   keys.py         lightness, hue, saturation, channels
   intervals.py    threshold, edges, random, none
   core.py         sort_row, pixelsort (angle), sort_file (mask)
+  animate.py      odd-even animation of the sort → MP4 / GIF
   cli.py          the pixelsort command
+docs/
+  index.html      the browser playground (GitHub Pages), one file, no build step
 examples/
   make_scene.py           paints the demo sunset
   make_readme_images.py   rebuilds everything in docs/img
-tests/            17 tests: keys, intervals, angle, masks, CLI
+tests/            26 tests: keys, intervals, angle, masks, animation, CLI
 ```
 
 ## Develop
