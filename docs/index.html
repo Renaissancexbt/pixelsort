@@ -71,6 +71,12 @@ input[type=range] { width: 100%; accent-color: var(--acc); }
 .presets .chip { text-align: center; }
 footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px 28px; }
 .hidden { display: none !important; }
+.star { position: fixed; right: 20px; bottom: 20px; max-width: 320px; background: var(--panel2); border: 1px solid var(--acc); border-radius: 14px; padding: 14px 16px; box-shadow: 0 12px 40px rgba(0,0,0,.5); display: none; gap: 12px; align-items: flex-start; z-index: 5; }
+.star.on { display: flex; animation: pop .35s ease-out; }
+@keyframes pop { from { transform: translateY(16px); opacity: 0; } }
+.star p { margin: 0 0 10px; font-size: 14px; line-height: 1.4; }
+.star .x { background: none; border: 0; color: var(--dim); font-size: 18px; cursor: pointer; padding: 0 0 0 4px; }
+@media (max-width: 600px) { .star { left: 16px; right: 16px; bottom: 16px; max-width: none; } }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font: 600 14px Inter, system-ui, sans-serif; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
 </style>
@@ -81,7 +87,7 @@ footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px
     <h1>pixel<span>sort</span></h1>
     <p>drop a photo, drag a slider, watch it melt</p>
   </div>
-  <a class="gh" href="https://github.com/Renaissancexbt/pixelsort" target="_blank" rel="noopener">★ github</a>
+  <a class="gh" href="https://github.com/Renaissancexbt/pixelsort" target="_blank" rel="noopener">★ Star on GitHub</a>
 </header>
 
 <main>
@@ -148,6 +154,11 @@ footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px
 <footer>runs 100% in your browser · your photos and camera never leave this page · MIT ·
   <a href="https://github.com/Renaissancexbt/pixelsort" target="_blank" rel="noopener">source</a></footer>
 <div class="toast" id="toast"></div>
+<div class="star" id="star" role="dialog" aria-label="Star pixelsort on GitHub">
+  <div><p><b>Made something cool?</b><br>pixelsort is free and open source. A star on GitHub helps other people find it.</p>
+  <a class="btn primary small" id="starBtn" href="https://github.com/Renaissancexbt/pixelsort" target="_blank" rel="noopener">★ Star on GitHub</a></div>
+  <button class="x" id="starX" aria-label="close">×</button>
+</div>
 
 <script>
 "use strict";
@@ -321,6 +332,7 @@ async function watch(seconds = 5) {
   present(st);
   $("hud").textContent = `sorted · ${done} passes · ${(swapsTotal / 1e6).toFixed(2)}M swaps`;
   animating = false; setBusy(false);
+  madeSomething(3);
 }
 const frame = () => new Promise((r) => requestAnimationFrame(r));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -354,7 +366,7 @@ async function record() {
 // ---------- sources ----------
 function loadImage(url, name) {
   const im = new Image(); im.crossOrigin = "anonymous";
-  im.onload = () => { stopCam(); setSource(im, im.naturalWidth, im.naturalHeight); srcName = name || "photo.jpg"; updateCmd(); };
+  im.onload = () => { stopCam(); setSource(im, im.naturalWidth, im.naturalHeight); srcName = name || "photo.jpg"; updateCmd(); if (name && name !== "sunset.png") madeSomething(2); };
   im.onerror = () => toast("couldn't read that image");
   im.src = url;
 }
@@ -398,6 +410,16 @@ function stopCam() {
   $("cam").classList.remove("live"); $("cam").textContent = "📷 Camera"; $("animate").disabled = false;
   $("hud").textContent = "";
 }
+
+// ---------- star nudge: once, after the person has actually made something ----------
+let made = 0, nudged = false;
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } }
+function madeSomething(weight = 1) {
+  made += weight;
+  if (nudged || made < 3 || store("ps-star") === "1") return;
+  nudged = true; setTimeout(() => $("star").classList.add("on"), 900);
+}
+function closeStar() { $("star").classList.remove("on"); store("ps-star", "1"); }
 
 // ---------- ui ----------
 function chips(el, list, field) {
@@ -445,7 +467,7 @@ chips($("keys"), Object.keys(KEYS), "key");
 chips($("intervals"), Object.keys(INTERVALS), "interval");
 PRESETS.forEach(([name, p]) => {
   const b = document.createElement("button"); b.className = "chip"; b.textContent = name;
-  b.onclick = () => { Object.assign(o, BASE, p); sync(); render(); };
+  b.onclick = () => { Object.assign(o, BASE, p); sync(); render(); madeSomething(); };
   $("presets").appendChild(b);
 });
 for (const f of ["lower", "upper", "length", "angle"]) {
@@ -464,7 +486,9 @@ $("sample").onclick = () => loadImage("img/original.jpg", "sunset.png");
 $("cam").onclick = startCam;
 $("animate").onclick = () => watch(5);
 $("record").onclick = record;
-$("download").onclick = () => view.toBlob((b) => save(b, "pixelsort.png"), "image/png");
+$("download").onclick = () => { view.toBlob((b) => save(b, "pixelsort.png"), "image/png"); madeSomething(3); };
+$("starX").onclick = closeStar;
+$("starBtn").onclick = closeStar;
 $("copy").onclick = async () => {
   const text = $("cmd").textContent;
   try { await navigator.clipboard.writeText(text); toast("command copied"); } catch { toast(text); }
