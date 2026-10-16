@@ -96,7 +96,7 @@ footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px
       <canvas id="view" width="960" height="600" aria-label="pixel sorted image"></canvas>
       <div class="hud" id="hud"></div>
       <div class="rec" id="rec"><i></i>REC</div>
-      <div class="hint" id="hint">drop an image anywhere · hold <b>space</b> to see the original</div>
+      <div class="hint" id="hint">drop or paste an image · hold <b>space</b> for the original · <b>R</b> surprise · <b>A</b> animate</div>
     </div>
     <div class="below">
       <div class="cmd"><code id="cmd"></code><button class="btn small" id="copy">copy</button></div>
@@ -117,6 +117,10 @@ footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px
     <div class="card">
       <h2>Presets</h2>
       <div class="presets" id="presets"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn small grow" id="surprise" title="R">🎲 Surprise me</button>
+        <button class="btn small grow" id="share">🔗 Share settings</button>
+      </div>
     </div>
 
     <div class="card">
@@ -142,11 +146,11 @@ footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px
     <div class="card">
       <h2>Make something</h2>
       <div class="row">
-        <button class="btn primary grow" id="animate">▶ Watch it sort</button>
+        <button class="btn primary grow" id="animate" title="A">▶ Watch it sort</button>
       </div>
       <div class="row" style="margin-top:8px">
         <button class="btn grow" id="record">🎬 Record video</button>
-        <button class="btn grow" id="download">⬇ PNG</button>
+        <button class="btn grow" id="download" title="S">⬇ PNG</button>
       </div>
     </div>
   </aside>
@@ -217,7 +221,7 @@ let camStream = null, video = null, animating = false, showOriginal = false, rec
 
 const PRESETS = [
   ["melt", {}], ["drip", { angle: 90, lower: 0.2, upper: 0.9 }], ["rain", { angle: 270, reverse: true, lower: 0.1, upper: 0.7 }],
-  ["diagonal", { angle: 30, lower: 0.15, upper: 0.95 }], ["rainbow", { key: "hue", interval: "random", length: 140 }],
+  ["diagonal", { angle: 30, lower: 0.15, upper: 0.95 }], ["rainbow", { key: "hue", interval: "random", length: 140, seed: 4 }],
   ["outline", { interval: "edges", lower: 0.1 }],
 ];
 const BASE = { key: "lightness", interval: "threshold", lower: 0.25, upper: 0.8, length: 60, angle: 0, reverse: false };
@@ -421,6 +425,45 @@ function madeSomething(weight = 1) {
 }
 function closeStar() { $("star").classList.remove("on"); store("ps-star", "1"); }
 
+// ---------- settings in the URL, so any look can be shared as a link ----------
+const SHORT = { key: "k", interval: "i", lower: "lo", upper: "up", length: "n", angle: "a", reverse: "r", seed: "s" };
+function writeHash() {
+  const p = new URLSearchParams();
+  for (const [f, k] of Object.entries(SHORT)) {
+    const v = o[f], d = f === "seed" ? 7 : BASE[f];
+    if (v !== d) p.set(k, typeof v === "boolean" ? (v ? 1 : 0) : v);
+  }
+  const h = p.toString();
+  try { history.replaceState(null, "", h ? "#" + h : location.pathname + location.search); } catch {}
+}
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  const num = (v, lo, hi) => { const x = parseFloat(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : undefined; };
+  if (KEYS[p.get("k")]) o.key = p.get("k");
+  if (INTERVALS[p.get("i")]) o.interval = p.get("i");
+  const lo = num(p.get("lo"), 0, 1), up = num(p.get("up"), 0, 1), n = num(p.get("n"), 4, 400), a = num(p.get("a"), 0, 359), sd = num(p.get("s"), 0, 1e9);
+  if (lo !== undefined) o.lower = lo; if (up !== undefined) o.upper = up;
+  if (n !== undefined) o.length = Math.round(n); if (a !== undefined) o.angle = Math.round(a);
+  if (sd !== undefined) o.seed = Math.round(sd);
+  if (p.get("r") === "1") o.reverse = true;
+}
+function surprise() {
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const interval = pick(["threshold", "threshold", "threshold", "edges", "random"]);
+  const lower = +(0.05 + Math.random() * 0.35).toFixed(2);
+  Object.assign(o, BASE, {
+    key: pick(["lightness", "lightness", "lightness", "hue", "saturation", "intensity"]),
+    interval,
+    lower: interval === "edges" ? +(0.05 + Math.random() * 0.15).toFixed(2) : lower,
+    upper: +Math.min(1, lower + 0.3 + Math.random() * 0.5).toFixed(2),
+    length: Math.round(20 + Math.random() * 220),
+    angle: pick([0, 90, 270, 180, Math.round(Math.random() * 359)]),
+    reverse: Math.random() < 0.35,
+    seed: Math.floor(Math.random() * 1e6),
+  });
+  sync(); render(); madeSomething();
+}
+
 // ---------- ui ----------
 function chips(el, list, field) {
   el.innerHTML = "";
@@ -444,6 +487,7 @@ function sync() {
   $("reroll").classList.toggle("hidden", !rnd);
   $("lowerLabel").textContent = edg ? "edge strength" : "lower";
   updateCmd();
+  writeHash();
 }
 function updateCmd() {
   const parts = [`<b>pixelsort</b> ${srcName.replace(/[<>&]/g, "")}`];
@@ -479,6 +523,11 @@ for (const f of ["lower", "upper", "length", "angle"]) {
   });
 }
 $("reverse").onchange = (e) => { o.reverse = e.target.checked; sync(); render(); };
+$("surprise").onclick = surprise;
+$("share").onclick = async () => {
+  writeHash();
+  try { await navigator.clipboard.writeText(location.href); toast("link copied: it opens with these settings"); } catch { toast(location.href); }
+};
 $("reroll").onclick = () => { o.seed = Math.floor(Math.random() * 1e6); sync(); render(); };
 $("pick").onclick = () => $("file").click();
 $("file").onchange = (e) => { const f = e.target.files[0]; if (f) loadImage(URL.createObjectURL(f), f.name); };
@@ -498,11 +547,18 @@ const stage = $("stage");
 ["dragleave", "drop"].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) stage.classList.remove("drag"); }));
 document.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("image/")) loadImage(URL.createObjectURL(f), f.name); });
 document.addEventListener("paste", (e) => { const it = [...e.clipboardData.items].find((i) => i.type.startsWith("image/")); if (it) loadImage(URL.createObjectURL(it.getAsFile()), "pasted.png"); });
+document.addEventListener("keydown", (e) => {
+  if (e.target !== document.body || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.code === "KeyR") surprise();
+  else if (e.code === "KeyA" && !camStream) watch(5);
+  else if (e.code === "KeyS") $("download").click();
+});
 document.addEventListener("keydown", (e) => { if (e.code === "Space" && e.target === document.body && !showOriginal) { e.preventDefault(); showOriginal = true; render(); } });
 document.addEventListener("keyup", (e) => { if (e.code === "Space" && showOriginal) { showOriginal = false; render(); } });
 stage.addEventListener("pointerdown", () => { if (!animating) { showOriginal = true; render(); } });
 ["pointerup", "pointerleave"].forEach((ev) => stage.addEventListener(ev, () => { if (showOriginal) { showOriginal = false; render(); } }));
 
+readHash();
 sync();
 loadImage("img/original.jpg", "sunset.png");
 </script>
