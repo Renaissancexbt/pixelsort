@@ -33,6 +33,12 @@ dependency (Pillow), and every option explained below with a picture.
 | **⌨️ Command line** | `pixelsort photo.jpg --angle 90` for a still, add `--animate drip.mp4` for the video of the sort. |
 | **🐍 Python** | `from pixelsort import pixelsort` and use it inside your own code. |
 
+[![The playground: a sunset melted into vertical rain, with presets and sliders on the right](docs/img/playground.jpg)](https://renaissancexbt.github.io/pixelsort/)
+
+Every look in the playground lives in the URL, so **Share settings** gives you a
+link that opens with exactly the same effect. Keyboard: **R** surprise me,
+**A** watch it sort, **S** save PNG, hold **Space** to compare with the original.
+
 ## Quick start
 
 ```bash
@@ -40,7 +46,19 @@ pip install git+https://github.com/Renaissancexbt/pixelsort
 pixelsort photo.jpg                       # writes photo.sorted.png
 pixelsort photo.jpg --angle 90            # vertical streaks
 pixelsort photo.jpg --key hue --interval random --length 120
+pixelsort photo.jpg --preset rain         # named looks, same as the playground
 ```
+
+| preset | what it does | same as |
+|---|---|---|
+| `melt` | mid-tones streak sideways | *(defaults)* |
+| `drip` | colour runs down the picture | `--angle 90 --lower 0.2 --upper 0.9` |
+| `rain` | bright pixels fall like rain | `--angle 270 --reverse --lower 0.1 --upper 0.7` |
+| `diagonal` | streaks at an angle | `--angle 30 --lower 0.15 --upper 0.95` |
+| `rainbow` | runs sorted by hue | `--key hue --interval random --length 140 --seed 4` |
+| `outline` | shapes keep their edges, insides smear | `--interval edges --lower 0.1` |
+
+Flags given after a preset override it: `--preset rain --angle 0`.
 
 Watch it happen. `--animate` renders the sort itself, pass by pass, as an MP4
 (needs ffmpeg) or a GIF:
@@ -139,13 +157,14 @@ pixelsort/
   intervals.py    threshold, edges, random, none
   core.py         sort_row, pixelsort (angle), sort_file (mask)
   animate.py      odd-even animation of the sort → MP4 / GIF
+  presets.py      melt, drip, rain, diagonal, rainbow, outline
   cli.py          the pixelsort command
 docs/
   index.html      the browser playground (GitHub Pages), one file, no build step
 examples/
   make_scene.py           paints the demo sunset
   make_readme_images.py   rebuilds everything in docs/img
-tests/            26 tests: keys, intervals, angle, masks, animation, CLI
+tests/            31 tests: keys, intervals, angle, masks, animation, presets, CLI
 ```
 
 ## Develop
